@@ -1,0 +1,666 @@
+#include <SFML/Graphics.hpp>
+#include <iostream>
+#include <time.h>
+#include <math.h>
+#include <sstream>
+
+using namespace std;
+using namespace sf;
+
+void Board (RenderWindow &, int[31][28]);
+void Score (RenderWindow &,int, Text &, Font &, Clock &);
+void timer(RenderWindow & , bool, Clock );
+
+class Ghosts
+{
+    public:
+    int xg ; // x position in screen...draw stuff based off of me!
+    int yg;
+    int r;
+    int g;
+    int b;
+    int ig;  // x position in matrix...locate stuff based off of me!
+    int jg;
+    void Build(RenderWindow & );
+    string color;
+    Sprite sprite;
+    Texture texture;
+};
+//http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
+//The first fruit appears when Pac-Man has eaten 70 of the dots in the maze, and the second when 170 have been eaten.
+int main(int argc, char ** argv)
+{
+    srand(time(NULL));
+    int x = 1;
+    int y = 1;
+    int rad = 20;
+    int scorecounter = 0;
+    int direction = rand()%4+1;
+    int mx = 0;
+    int my = 0;
+    int counter = 0;
+    int frameCounter = 0;
+    int frame = 0;
+    bool scatter;
+
+    Clock clock; // starts the clock
+
+    Ghosts GhostP[4];
+//0=green ; 1 == light blue; 2 = pink ; 3 = dark blue
+
+    GhostP[0].r = 0;
+    GhostP[1].r = 0;
+    GhostP[2].r = 255;
+    GhostP[3].r = 0;
+
+    GhostP[0].g = 255;
+    GhostP[1].g = 255;
+    GhostP[2].g = 102;
+    GhostP[3].g = 0;
+
+    GhostP[0].b = 0;
+    GhostP[1].b = 255;
+    GhostP[2].b = 163;
+    GhostP[3].b = 255;
+
+    GhostP[0].xg = 340;
+    GhostP[1].xg = 380;
+    GhostP[2].xg = 410;
+    GhostP[3].xg = 460;
+
+    GhostP[0].yg = 400;
+    GhostP[1].yg = 400;
+    GhostP[2].yg = 305;
+    GhostP[3].yg = 400;
+
+    GhostP[0].ig = GhostP[0].xg/30;
+    GhostP[1].ig = GhostP[1].xg/30;
+    GhostP[2].ig = GhostP[2].xg/30;
+    GhostP[3].ig = GhostP[3].xg/30;
+
+    GhostP[0].jg = GhostP[0].yg/30;
+    GhostP[1].jg = GhostP[1].yg/30;
+    GhostP[2].jg = GhostP[2].yg/30;
+    GhostP[3].jg = GhostP[3].yg/30;
+
+    GhostP[0].color = "BlueGhostSpriteSheet.png";
+    GhostP[1].color = "PinkGhostSpriteSheet.png";
+    GhostP[2].color = "RedGhostSpriteSheet.png";
+    GhostP[3].color = "YellowGhostSpriteSheet.png";
+
+    RenderWindow window(VideoMode(840, 930), "PAC-MAN!");
+
+
+
+    window.setFramerateLimit(80);
+
+    int matrix[31][28] =
+    {
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,2,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,2,1},
+        {1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1},
+        {1,0,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1},
+        {1,0,0,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1},
+        {1,1,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1},
+        {3,3,3,3,3,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,3,3,3,3,3},
+        {3,3,3,3,3,1,0,1,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,3,3,3,3,3},
+        {3,3,3,3,3,1,0,1,1,0,1,1,1,5,5,1,1,1,0,1,1,0,1,3,3,3,3,3},
+        {1,1,1,1,1,1,0,1,1,0,1,5,5,5,5,5,5,1,0,1,1,0,1,1,1,1,1,1},
+        {4,0,0,0,0,0,0,0,0,0,1,5,5,5,5,5,5,1,0,0,0,0,0,0,0,0,0,4},
+        {1,1,1,1,1,1,0,1,1,0,1,5,5,5,5,5,5,1,0,1,1,0,1,1,1,1,1,1},
+        {3,3,3,3,3,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,3,3,3,3,3},
+        {3,3,3,3,3,1,0,1,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,3,3,3,3,3},
+        {3,3,3,3,3,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,3,3,3,3,3},
+        {1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1},
+        {1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1},
+        {1,2,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,2,1},
+        {1,1,1,0,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,0,1,1,1},
+        {1,1,1,0,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,0,1,1,1},
+        {1,0,0,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1},
+        {1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,1},
+        {1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3}
+    };
+
+  //0 = black w/ small dot 2 = black w/ big dot 3 = plain black not ok to go on
+  //4 = plain black ok to go on 5 = black only ghost 1 = blue dont go
+    Font font;
+    if (!font.loadFromFile("AGENCYB.TTF"))
+       cout << "error loading font\n" ;
+
+    Text text;
+    text.setFont(font);
+    text.setCharacterSize(15);
+    text.setColor(Color::White);
+    text.setPosition(800,900);
+
+    Texture spriteSheet;
+    Sprite pacmansprite;
+
+    int framepacman = 0;
+    int mouthcounter = 0;
+
+    spriteSheet.loadFromFile("pacmanall.png");
+
+    pacmansprite.setTexture(spriteSheet);
+    pacmansprite.setPosition(28,28);
+    pacmansprite.setScale(1.29,1.29);
+    pacmansprite.setTextureRect(IntRect(2*21,0,21,21));
+
+for(int k = 0; k < 4; k++)
+{
+    GhostP[k].texture.loadFromFile(GhostP[k].color);
+    GhostP[k].sprite.setTexture(GhostP[k].texture);
+}
+
+    while (window.isOpen())
+    {
+        Event event;
+        while (window.pollEvent(event))
+        {
+             if (event.type == Event::Closed)
+                 window.close();
+
+
+
+            if(Keyboard::isKeyPressed(Keyboard::Left))
+              {
+
+                if(mouthcounter % 2 == 0)
+
+                {
+
+                    framepacman = 1;
+
+                    pacmansprite.setTextureRect(IntRect(framepacman*21,0,21,21));
+
+                }
+
+                if(mouthcounter % 2 == 1)
+
+                {
+
+                    framepacman = 0;
+
+                    pacmansprite.setTextureRect(IntRect(framepacman*21,0,21,21));
+
+                }
+
+                if(x == 0 && y == 13)
+
+                {
+
+                    pacmansprite.move(810,0);
+
+                    x = 27;
+
+                    y = 13;
+
+                }
+
+                if (matrix[y][x-1]== 0 or matrix[y][x-1] == 2 or matrix[y][x-1] == 4)
+
+                 {
+
+                     pacmansprite.move(-30,0);
+
+                    x--;
+
+                    if (matrix[y][x] == 0)
+
+                     {
+
+                         matrix[y][x] = 4;
+
+                         scorecounter = scorecounter+10;
+
+                     }
+
+                     else if (matrix[y][x] == 2)
+
+                     {
+
+                         matrix[y][x] = 4;
+
+                         scorecounter = scorecounter+50;
+
+                     }
+
+                 }
+
+             }
+
+             if(Keyboard::isKeyPressed(Keyboard::Right))
+
+             {
+
+                 if(mouthcounter % 2 == 0)
+
+                {
+
+                    framepacman = 1;
+
+                    pacmansprite.setTextureRect(IntRect(framepacman*21,20,21,21));
+
+                }
+
+                if(mouthcounter % 2 == 1)
+
+                {
+
+                    framepacman = 0;
+
+                    pacmansprite.setTextureRect(IntRect(framepacman*21,20,21,21));
+
+                }
+
+                 if(x == 27 && y == 13)
+
+                 {
+
+                     pacmansprite.move(-810,0);
+
+                     x = 0;
+
+                     y = 13;
+
+                 }
+
+                 if(matrix[y][x+1]== 0 or matrix[y][x+1] == 2 or matrix[y][x+1] == 4)
+
+                 {
+
+                     pacmansprite.move(30,0);
+
+                     x++;
+
+                    if (matrix[y][x] == 0)
+
+                     {
+
+                         matrix[y][x] = 4;
+
+                         scorecounter = scorecounter+10;
+
+                     }
+
+                     if (matrix[y][x] == 2)
+
+                     {
+
+                         matrix[y][x] = 4;
+
+                         scorecounter = scorecounter+50;
+
+                     }
+
+                 }
+
+             }
+
+             if(Keyboard::isKeyPressed(Keyboard::Up))
+
+             {
+
+                 if(mouthcounter % 2 == 0)
+
+                {
+
+                    framepacman = 1;
+
+                    pacmansprite.setTextureRect(IntRect(framepacman*21,40,21,21));
+
+                }
+
+                if(mouthcounter % 2 == 1)
+
+                {
+
+                    framepacman = 0;
+
+                    pacmansprite.setTextureRect(IntRect(framepacman*21,40,21,21));
+
+                }
+
+                 if(matrix[y-1][x]== 0 or matrix[y-1][x] == 2 or matrix[y-1][x] == 4)
+
+                 {
+
+                     pacmansprite.move(0,-30);
+
+                     y--;
+
+                    if (matrix[y][x] == 0)
+
+                     {
+
+                         matrix[y][x] = 4;
+
+                         scorecounter = scorecounter+10;
+
+                     }
+
+                     if (matrix[y][x] == 2)
+
+                     {
+
+                         matrix[y][x] = 4;
+
+                         scorecounter = scorecounter+50;
+
+                     }
+
+                 }
+
+             }
+
+             if(Keyboard::isKeyPressed(Keyboard::Down))
+
+             {
+
+                if(mouthcounter % 2 == 0)
+
+                {
+
+                    framepacman = 1;
+
+                    pacmansprite.setTextureRect(IntRect(framepacman*21,60,21,21));
+
+                }
+
+                if(mouthcounter % 2 == 1)
+
+                {
+
+                    framepacman = 0;
+
+                    pacmansprite.setTextureRect(IntRect(framepacman*21,61,21,21));
+
+                }
+
+                 if(matrix[y+1][x]== 0 or matrix[y+1][x] == 2 or matrix[y+1][x] == 4)
+
+                 {
+
+                     pacmansprite.move(0,30);
+
+                      y++;
+
+                    if (matrix[y][x] == 0)
+
+                     {
+
+                         matrix[y][x] = 4;
+
+                         scorecounter = scorecounter+10;
+
+                     }
+
+                     if (matrix[y][x] == 2)
+
+                     {
+
+                         matrix[y][x] = 4;
+
+                         scorecounter = scorecounter+50;
+
+                     }
+
+                 }
+
+             }
+
+             mouthcounter++;
+        }
+
+//ghosts movement
+//direction 1 = up 2 = right 3 = down 4 = left
+
+for(int g = 0; g < 4; g++)
+{
+    GhostP[g].sprite.setTextureRect(IntRect(32*frame, 0 , 30,33));
+    GhostP[g].sprite.setPosition(GhostP[g].xg, GhostP[g].yg);
+}
+
+
+//for(int i = 0; i < 4; i++)
+//{
+//    if(direction == 4 )
+//              {
+//                    if (GhostP[i].ig == 0 && GhostP[i].jg == 13)
+//                                {
+//                                    GhostP[i].sprite.move(810,0);
+//                                    GhostP[i].ig = 27 ;
+//                                    GhostP[i].jg = 13 ;
+//                                }
+//                        if (matrix[y][x-1]== 0 or matrix[y][x-1] == 2 or matrix[y][x-1] == 4 or matrix[y][x-1] == 5)
+//                                {
+//                                    GhostP[i].sprite.move(-30,0);
+//                                    GhostP[i].ig--;
+//                                }
+//                        else
+//                        {
+//                             direction = rand()%4+1;
+//                        }
+//             }
+//
+//        if(direction == 2 )
+//             {
+//
+//                     if (GhostP[i].ig == 27 && GhostP[i].jg == 13)
+//                        {
+//                            GhostP[i].sprite.move(-812,0);
+//                            GhostP[i].ig = 0;
+//                            GhostP[i].jg = 13;
+//                         }
+//                if(matrix[y][x+1]== 0 or matrix[y][x+1] == 2 or matrix[y][x+1] == 4 or matrix[y][x+1] == 5)
+//                 {
+//                        GhostP[i].sprite.move(30,0);
+//                        GhostP[i].ig++;
+//                 }
+//
+//                else
+//                 {
+//                      direction = rand()%4+1;
+//                 }
+//
+//            }
+//
+//
+//        if(direction == 1 )
+//             {
+//                    if(matrix[y-1][x]== 0 or matrix[y-1][x] == 2 or matrix[y-1][x] == 4 or matrix[y-1][x] == 5)
+//                        {
+//                                GhostP[i].sprite.move(0,-30);
+//                            GhostP[i].jg--;
+//                        }
+//
+//                        else
+//                        {
+//                             direction = rand()%4+1;
+//                        }
+//            }
+//
+//
+//        if( direction == 3 )
+//             {
+//                 if(matrix[y+1][x]== 0 or matrix[y+1][x] == 2 or matrix[y+1][x] == 4)
+//                       {
+//                            GhostP[i].sprite.move(0,30);
+//                            GhostP[i].jg++;
+//                        }
+//
+//                        else
+//                        {
+//                             direction = rand()%4+1;
+//                        }
+//            }
+//
+//}
+
+    if(frameCounter == 80)
+    {
+        frame = (frame + 1) % 8;
+        frameCounter = 0;
+    }
+    frameCounter++;
+
+         window.clear();
+         Board(window,matrix);
+         Score(window,scorecounter,text, font, clock);
+         timer(window, scatter,clock);
+         window.draw(pacmansprite);
+         for(int v = 0 ; v < 4; v++)
+         {
+            window.draw(GhostP[v].sprite);
+         }
+         window.display();
+
+}
+}
+void Board (RenderWindow &window, int matrix[31][28])
+{
+    RectangleShape tile(Vector2f(30,30));
+
+    CircleShape dot(2.f);
+    dot.setFillColor(Color::Yellow);
+
+    CircleShape powerPellet(5.f);
+    powerPellet.setFillColor(Color::Yellow);
+       for(int i = 0; i < 31; i++)
+       {
+            for (int j = 0; j < 28; j++)
+            {
+                tile.setPosition(j*30,i*30);
+                powerPellet.setPosition((j*30)+9,(i*30)+9);
+
+                    if (matrix[i][j] == 2)
+                    {
+                        tile.setFillColor(Color::Black);
+                        window.draw(tile);
+                        window.draw(powerPellet);
+                    }
+                    if (matrix[i][j] == 1)
+                    {
+                        tile.setFillColor(Color::Blue);
+                        window.draw(tile);
+                    }
+
+                    if (matrix[i][j] == 0)
+                    {
+                         tile.setFillColor(Color::Black);
+                         dot.setPosition((j*30)+11,(i*30)+12);
+                         window.draw(tile);
+                         window.draw(dot);
+                    }
+                    if (matrix[i][j] == 3 or matrix[i][j] == 4 or matrix[i][j] == 5)
+                    {
+                        tile.setFillColor(Color::Black);
+                        window.draw(tile);
+                    }
+
+            }
+        }
+}
+
+void Score (RenderWindow &window, int scorecounter, Text &text, Font &font, Clock &clock)
+{
+    string score;
+    stringstream q;
+    q << scorecounter;
+    score = q.str();
+
+    text.setString(score);
+    window.draw(text);
+
+    Text win;
+    win.setFont(font);
+    win.setCharacterSize(45);
+    win.setColor(Color::Magenta);
+    win.setString("YOU WIN!!!!!!");
+    win.setPosition(330,372);
+
+    Time elapsed = clock.getElapsedTime();
+
+    stringstream ss;
+    ss<<elapsed.asSeconds();
+    string timer1 = ss.str();
+
+    ///ss<<clock.getElapsedTime();
+
+    Text timerd;
+    timerd.setFont(font);
+    timerd.setColor(Color::White);
+    timerd.setString(timer1);
+    timerd.setPosition(0,900);
+
+    window.draw(timerd);
+
+    if (scorecounter == 3080)
+    {
+        window.draw(win);
+    }
+}
+
+//void Ghosts::Build(RenderWindow &window)
+//{
+//
+//
+////Sprite sprite;
+////sprite.setTexture(texture);
+////sprite.setColor(Color(r,g,b));
+////sprite.setPosition(Vector2f(xg ,yg )); // absolute position
+////sprite.setScale(Vector2f(.1,.1)); // absolute scale factor
+//
+////window.draw(sprite);
+//
+//}
+
+void timer(RenderWindow &window, bool scatter, Clock clock)
+{
+
+
+Time elapsed = clock.getElapsedTime();
+cout << elapsed.asSeconds() << endl;
+
+if(elapsed.asSeconds() <= 7 )
+{
+    scatter = true;
+}
+if(elapsed.asSeconds() > 7 && elapsed.asSeconds() <= 27 )
+{
+    scatter = false;
+}
+if(elapsed.asSeconds() > 27 && elapsed.asSeconds() <= 34)
+{
+    scatter = true;
+}
+if(elapsed.asSeconds() > 34 && elapsed.asSeconds() <= 54 )
+{
+    scatter = false;
+}
+if(elapsed.asSeconds() > 54 && elapsed.asSeconds() <= 59)
+{
+    scatter = true;
+}
+if(elapsed.asSeconds() > 59)
+{
+    scatter = false;
+}
+
+//clock.restart();
+//Time elapsed2 = clock.getElapsedTime();
+//cout << elapsed2.asSeconds() << endl;
+
+//Scatter for 7 seconds, then Chase for 20 seconds.
+//Scatter for 7 seconds, then Chase for 20 seconds.
+//Scatter for 5 seconds, then Chase for 20 seconds.
+//Scatter for 5 seconds, then switch to Chase mode permanently.
+}
